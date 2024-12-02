@@ -19,9 +19,11 @@ def generate_random_username(length):
 
 # Function to search for available usernames
 def search_usernames(context: CallbackContext):
-    chat_id = context.job.context  # Chat ID to send messages
+    job = context.job
+    chat_id = job.context['chat_id']  # Chat ID to send messages
+    username_length = job.context['length']  # Length of the username
     for _ in range(10):  # Check 10 usernames per iteration
-        username = generate_random_username(context.job.data)
+        username = generate_random_username(username_length)
         if check_instagram_username(username):
             context.bot.send_message(chat_id=chat_id, text=f"Available username found: {username}")
 
@@ -39,7 +41,9 @@ def four(update: Update, context: CallbackContext):
         update.message.reply_text("Already searching for usernames. Use /stop to stop the search.")
         return
     # Schedule a job to search for 4-letter usernames every minute
-    search_job = context.job_queue.run_repeating(search_usernames, interval=60, first=0, context=chat_id, data=4)
+    search_job = context.job_queue.run_repeating(
+        search_usernames, interval=60, first=0, context={'chat_id': chat_id, 'length': 4}
+    )
     update.message.reply_text("Started searching for 4-letter usernames.")
 
 # Start searching for 5-letter usernames
@@ -50,7 +54,9 @@ def five(update: Update, context: CallbackContext):
         update.message.reply_text("Already searching for usernames. Use /stop to stop the search.")
         return
     # Schedule a job to search for 5-letter usernames every minute
-    search_job = context.job_queue.run_repeating(search_usernames, interval=60, first=0, context=chat_id, data=5)
+    search_job = context.job_queue.run_repeating(
+        search_usernames, interval=60, first=0, context={'chat_id': chat_id, 'length': 5}
+    )
     update.message.reply_text("Started searching for 5-letter usernames.")
 
 # Stop command - stop the username search
@@ -66,7 +72,7 @@ def stop(update: Update, context: CallbackContext):
 # Main function to run the bot
 def main():
     # Replace 'YOUR_TELEGRAM_BOT_TOKEN' with your bot's token
-    updater = Updater("7689326948:AAHl9eqQk1_-130IihUQ2z0xn-VSzVRU1Ig")
+    updater = Updater("7689326948:AAHl9eqQk1_-130IihUQ2z0xn-VSzVRU1Ig", use_context=True)
 
     # Dispatcher to register handlers
     dp = updater.dispatcher
@@ -83,4 +89,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-  
+    
