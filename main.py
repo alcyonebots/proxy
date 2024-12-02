@@ -66,7 +66,7 @@ def stop(update: Update, context: CallbackContext):
 # Main function to run the bot
 def main():
     # Replace 'YOUR_TELEGRAM_BOT_TOKEN' with your bot's token
-    updater = Updater("YOUR_TELEGRAM_BOT_TOKEN")
+    updater = Updater("7689326948:AAHl9eqQk1_-130IihUQ2z0xn-VSzVRU1Ig")
 
     # Dispatcher to register handlers
     dp = updater.dispatcher
