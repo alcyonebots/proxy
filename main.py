@@ -2,10 +2,11 @@ import random
 import string
 import requests
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext, JobQueue
+from telegram.ext import Updater, CommandHandler, CallbackContext
 
-# Global variable to store the job instance
+# Global variable to store the job instance and searched usernames
 search_job = None
+searched_usernames = set()  # Set to track searched usernames
 
 # Function to check Instagram username availability
 def check_instagram_username(username):
@@ -24,6 +25,13 @@ def search_usernames(context: CallbackContext):
     username_length = job.context['length']  # Length of the username
     for _ in range(10):  # Check 10 usernames per iteration
         username = generate_random_username(username_length)
+        # If the username was already searched, skip it
+        if username in searched_usernames:
+            continue
+        # Log the username that we are checking
+        searched_usernames.add(username)
+        context.bot.send_message(chat_id=chat_id, text=f"Searching for username: {username}")
+        
         if check_instagram_username(username):
             context.bot.send_message(chat_id=chat_id, text=f"Available username found: {username}")
 
