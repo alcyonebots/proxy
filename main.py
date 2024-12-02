@@ -23,17 +23,19 @@ def search_usernames(context: CallbackContext):
     job = context.job
     chat_id = job.context['chat_id']  # Chat ID to send messages
     username_length = job.context['length']  # Length of the username
-    for _ in range(10):  # Check 10 usernames per iteration
+    for _ in range(30):  # Check 10 usernames per iteration
         username = generate_random_username(username_length)
         # If the username was already searched, skip it
         if username in searched_usernames:
             continue
-        # Log the username that we are checking
+        # Log the username that we are checking and send it to the user
         searched_usernames.add(username)
         context.bot.send_message(chat_id=chat_id, text=f"Searching for username: {username}")
         
         if check_instagram_username(username):
             context.bot.send_message(chat_id=chat_id, text=f"Available username found: {username}")
+        else:
+            context.bot.send_message(chat_id=chat_id, text=f"Username not available: {username}")
 
 # Start command - start the username search based on the selected type
 def start(update: Update, context: CallbackContext):
