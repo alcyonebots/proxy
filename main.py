@@ -12,26 +12,40 @@ searched_usernames = set()  # Set to track searched usernames
 def check_instagram_username(username):
     url = f"https://www.instagram.com/{username}/"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.instagram.com/"
+    }
+    cookies = {
+        "sessionid": "70428131521%3AJMtbf1lvxIIeUd%3A12%3AAYfCryRL9DNQQdu8CI58GsQUVK4zB2ubRnqCh-g3sg",
+        "csrftoken": "VgyMLeMtGSvpEZklyvziwy4zq6bWwFRD",
+        "mid": "ZvlJagABAAGw-dfijK9dT9DsMV3c",
+        "ig_did": "F23ED838-1118-44F5-8A2A-DECFF8DDA9C6",
+        "ds_user_id": "70428131521",
+        "rur": "\"HIL\\05470428131521\\0541763029054:01f7d179c259025912db145c54cf1363da9d391b8bd11a3ed3de39cbcdee1b78a5824040\""
     }
     try:
-        response = requests.get(url, headers=headers, timeout=10, allow_redirects=False)
-        
-        # Debug log
+        response = requests.get(url, headers=headers, cookies=cookies, timeout=10, allow_redirects=False)
         print(f"Checked {username}: Status Code {response.status_code}")
         
-        # Check if the response indicates a non-existent username
         if response.status_code == 404:
             return True  # Username is available
         elif response.status_code == 200:
-            return False  # Username is not available
+            return False  # Username is taken
+        elif response.status_code == 302:
+            print(f"Redirect detected for {username}. Likely a bot detection mechanism.")
+            return False  # Treat redirects as unavailable for safety
         else:
-            # Handle unexpected status codes
             print(f"Unexpected response for {username}: {response.status_code}")
             return False
     except requests.exceptions.RequestException as e:
         print(f"Error checking username {username}: {e}")
-        return False  # Assume unavailable if there's an error
+        return False
+
+# Example usage
+username = "testuser1234"
+is_available = check_instagram_username(username)
+print(f"Is '{username}' available? {'Yes' if is_available else 'No'}")
 
 # Function to generate random 4-5 letter usernames (including numbers)
 def generate_random_username(length):
