@@ -11,12 +11,24 @@ searched_usernames = set()  # Set to track searched usernames
 # Function to check Instagram username availability
 def check_instagram_username(username):
     url = f"https://www.instagram.com/{username}/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    }
     try:
-        response = requests.get(url, timeout=10)  # Timeout added to handle slow responses
+        response = requests.get(url, headers=headers, timeout=10, allow_redirects=False)
+        
+        # Debug log
+        print(f"Checked {username}: Status Code {response.status_code}")
+        
+        # Check if the response indicates a non-existent username
         if response.status_code == 404:
             return True  # Username is available
-        else:
+        elif response.status_code == 200:
             return False  # Username is not available
+        else:
+            # Handle unexpected status codes
+            print(f"Unexpected response for {username}: {response.status_code}")
+            return False
     except requests.exceptions.RequestException as e:
         print(f"Error checking username {username}: {e}")
         return False  # Assume unavailable if there's an error
@@ -30,7 +42,7 @@ def search_usernames(context: CallbackContext):
     job = context.job
     chat_id = job.context['chat_id']  # Chat ID to send messages
     username_length = job.context['length']  # Length of the username
-    for _ in range(10):  # Check 10 usernames per iteration
+    for _ in range(2):  # Check 2 usernames per iteration (reduce to avoid rate limits)
         username = generate_random_username(username_length)
         if username in searched_usernames:
             continue
@@ -102,4 +114,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+in()
         
