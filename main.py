@@ -23,6 +23,8 @@ PROXY_SOURCES = [
 
 def scrape_proxies():
     proxies = []
+    
+    # Proxy source 1: freeproxylists.net
     try:
         url = "https://www.freeproxylists.net/"
         response = requests.get(url, timeout=10)
@@ -39,42 +41,135 @@ def scrape_proxies():
                 proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
     except Exception as e:
         print(f"Error scraping from Free Proxy Lists: {e}")
-# Parse SSL Proxies
+    
+    # Proxy source 2: sslproxies.org
     try:
         url = "https://www.sslproxies.org/"
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
-        rows = soup.select("table tbody tr")
-        for row in rows:
+        rows = soup.find("table", {"id": "proxylisttable"}).find_all("tr")
+        for row in rows[1:]:
             cols = row.find_all("td")
-            if len(cols) >= 3:
+            if len(cols) >= 4:
                 ip = cols[0].text.strip()
                 port = cols[1].text.strip()
-                country = cols[3].text.strip()  # Assuming the 4th column is Country
-                proxy_type = "HTTP/HTTPS"
+                country = cols[3].text.strip()
+                proxy_type = "HTTPS"  # sslproxies.org usually provides HTTPS proxies
                 proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
     except Exception as e:
         print(f"Error scraping from SSL Proxies: {e}")
+    
+    # Proxy source 3: free-proxy-list.net
+    try:
+        url = "https://free-proxy-list.net/"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        rows = soup.find("table", {"class": "table-bordered"}).find_all("tr")
+        for row in rows[1:]:
+            cols = row.find_all("td")
+            if len(cols) >= 8:
+                ip = cols[0].text.strip()
+                port = cols[1].text.strip()
+                country = cols[3].text.strip()
+                proxy_type = cols[4].text.strip()  # Check if the proxy supports HTTPS
+                proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
+    except Exception as e:
+        print(f"Error scraping from Free Proxy List: {e}")
 
-    # Parse Proxy Daily
+    # Proxy source 4: proxy-daily.com
     try:
         url = "https://proxy-daily.com/"
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
-        proxy_blocks = soup.find_all("div", class_="centeredProxyList freeProxyStyle")
-        for block in proxy_blocks:
-            proxy_lines = block.text.strip().split("\n")
-            for line in proxy_lines:
-                if ":" in line:
-                    ip, port = line.split(":")
-                    proxies.append({"ip": ip.strip(), "port": port.strip(), "type": "HTTP", "country": "Unknown"})
+        rows = soup.find("table", {"class": "table-striped"}).find_all("tr")
+        for row in rows[1:]:
+            cols = row.find_all("td")
+            if len(cols) >= 3:
+                ip = cols[0].text.strip()
+                port = cols[1].text.strip()
+                country = cols[2].text.strip()
+                proxy_type = "HTTP"
+                proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
     except Exception as e:
         print(f"Error scraping from Proxy Daily: {e}")
+    
+    # Proxy source 5: us-proxy.org
+    try:
+        url = "https://www.us-proxy.org/"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        rows = soup.find("table", {"class": "table-striped"}).find_all("tr")
+        for row in rows[1:]:
+            cols = row.find_all("td")
+            if len(cols) >= 3:
+                ip = cols[0].text.strip()
+                port = cols[1].text.strip()
+                country = cols[2].text.strip()
+                proxy_type = "HTTP"
+                proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
+    except Exception as e:
+        print(f"Error scraping from US Proxy: {e}")
+    
+    # Proxy source 6: socks-proxy.net
+    try:
+        url = "https://www.socks-proxy.net/"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        rows = soup.find("table", {"class": "table-striped"}).find_all("tr")
+        for row in rows[1:]:
+            cols = row.find_all("td")
+            if len(cols) >= 3:
+                ip = cols[0].text.strip()
+                port = cols[1].text.strip()
+                country = cols[2].text.strip()
+                proxy_type = "SOCKS5"  # socks-proxy.net provides SOCKS5 proxies
+                proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
+    except Exception as e:
+        print(f"Error scraping from Socks Proxy: {e}")
+    
+    # Proxy source 7: proxynova.com
+    try:
+        url = "https://www.proxynova.com/proxy-server-list/"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        rows = soup.find("table", {"class": "table-striped"}).find_all("tr")
+        for row in rows[1:]:
+            cols = row.find_all("td")
+            if len(cols) >= 3:
+                ip = cols[0].text.strip()
+                port = cols[1].text.strip()
+                country = cols[2].text.strip()
+                proxy_type = "HTTP"
+                proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
+    except Exception as e:
+        print(f"Error scraping from Proxy Nova: {e}")
+    
+    # Proxy source 8: hidemy.name
+    try:
+        url = "https://hidemy.name/en/proxy-list/"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        rows = soup.find("table", {"class": "proxy__t"}).find_all("tr")
+        for row in rows[1:]:
+            cols = row.find_all("td")
+            if len(cols) >= 3:
+                ip = cols[0].text.strip()
+                port = cols[1].text.strip()
+                country = cols[2].text.strip()
+                proxy_type = "HTTP"
+                proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
+    except Exception as e:
+        print(f"Error scraping from HideMyName: {e}")
 
     return proxies
-
+    
 def test_proxy_latency(proxy):
     try:
         start = time.time()
@@ -82,9 +177,9 @@ def test_proxy_latency(proxy):
         if response.status_code == 200:
             latency = time.time() - start
             return latency
-    except:
-        return float('inf')  # Treat unresponsive proxies as having infinite latency
-    return float('inf')
+    except Exception as e:
+        print(f"Error testing proxy {proxy['ip']}:{proxy['port']} - {e}")
+    return float('inf')  # Treat unresponsive proxies as having infinite latency
 
 def categorize_proxies(proxies):
     high_quality = []
@@ -112,18 +207,21 @@ def distribute_proxies(context: CallbackContext):
     high_quality, medium_quality, low_quality = categorize_proxies(proxies)
 
     if high_quality:
+        print(f"Sending {len(high_quality)} high-quality proxies...")
         context.bot.send_message(
             HIGH_QUALITY_GROUP,
             f"High Quality Proxies:\n```{chr(10).join(high_quality)}```",
             parse_mode=ParseMode.MARKDOWN
         )
     if medium_quality:
+        print(f"Sending {len(medium_quality)} medium-quality proxies...")
         context.bot.send_message(
             MEDIUM_QUALITY_GROUP,
             f"Medium Quality Proxies:\n```{chr(10).join(medium_quality)}```",
             parse_mode=ParseMode.MARKDOWN
         )
     if low_quality:
+        print(f"Sending {len(low_quality)} low-quality proxies...")
         context.bot.send_message(
             LOW_QUALITY_GROUP,
             f"Low Quality Proxies:\n```{chr(10).join(low_quality)}```",
