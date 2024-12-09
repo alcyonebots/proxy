@@ -1,20 +1,14 @@
 import requests
-import asyncio
-from bs4 import BeautifulSoup
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import ParseMode
-from aiogram.utils import executor
 import time
+from bs4 import BeautifulSoup
+from telegram import ParseMode
+from telegram.ext import Updater, CommandHandler, CallbackContext
 
 # Replace these with your actual bot token and group IDs
 BOT_TOKEN = "7215448892:AAFfMvaXe1j8PUrrfdRvN9XHZpPHlAjOBxk"
 HIGH_QUALITY_GROUP = -1002377251885  # Replace with your High-quality group ID
 MEDIUM_QUALITY_GROUP = -1002295649275  # Replace with your Medium-quality group ID
 LOW_QUALITY_GROUP = -1002299532202  # Replace with your Low-quality group ID
-
-# Initialize bot and dispatcher
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(bot)
 
 PROXY_SOURCES = [
     "https://www.freeproxylists.net/",
@@ -29,8 +23,6 @@ PROXY_SOURCES = [
 
 def scrape_proxies():
     proxies = []
-
-    # Parse Free Proxy Lists
     try:
         url = "https://www.freeproxylists.net/"
         response = requests.get(url, timeout=10)
@@ -47,8 +39,7 @@ def scrape_proxies():
                 proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
     except Exception as e:
         print(f"Error scraping from Free Proxy Lists: {e}")
-
-    # Parse SSL Proxies
+# Parse SSL Proxies
     try:
         url = "https://www.sslproxies.org/"
         response = requests.get(url, timeout=10)
@@ -95,7 +86,7 @@ def test_proxy_latency(proxy):
         return float('inf')  # Treat unresponsive proxies as having infinite latency
     return float('inf')
 
-async def categorize_proxies(proxies):
+def categorize_proxies(proxies):
     high_quality = []
     medium_quality = []
     low_quality = []
@@ -112,32 +103,50 @@ async def categorize_proxies(proxies):
 
     return high_quality, medium_quality, low_quality
 
-async def distribute_proxies():
+def distribute_proxies(context: CallbackContext):
     proxies = scrape_proxies()
     if not proxies:
         print("No proxies found.")
         return
 
-    high_quality, medium_quality, low_quality = await categorize_proxies(proxies)
+    high_quality, medium_quality, low_quality = categorize_proxies(proxies)
 
     if high_quality:
-        await bot.send_message(HIGH_QUALITY_GROUP, f"High Quality Proxies:\n```{chr(10).join(high_quality)}```", parse_mode=ParseMode.MARKDOWN)
+        context.bot.send_message(
+            HIGH_QUALITY_GROUP,
+            f"High Quality Proxies:\n```{chr(10).join(high_quality)}```",
+            parse_mode=ParseMode.MARKDOWN
+        )
     if medium_quality:
-        await bot.send_message(MEDIUM_QUALITY_GROUP, f"Medium Quality Proxies:\n```{chr(10).join(medium_quality)}```", parse_mode=ParseMode.MARKDOWN)
+        context.bot.send_message(
+            MEDIUM_QUALITY_GROUP,
+            f"Medium Quality Proxies:\n```{chr(10).join(medium_quality)}```",
+            parse_mode=ParseMode.MARKDOWN
+        )
     if low_quality:
-        await bot.send_message(LOW_QUALITY_GROUP, f"Low Quality Proxies:\n```{chr(10).join(low_quality)}```", parse_mode=ParseMode.MARKDOWN)
+        context.bot.send_message(
+            LOW_QUALITY_GROUP,
+            f"Low Quality Proxies:\n```{chr(10).join(low_quality)}```",
+            parse_mode=ParseMode.MARKDOWN
+        )
 
-async def scheduler():
-    while True:
-        await distribute_proxies()
-        await asyncio.sleep(3600)  # 1 hour interval
+def start(update, context):
+    update.message.reply_text("Proxy Scraper Bot is running!")
 
-@dp.message_handler(commands=["start"])
-async def start_handler(message: types.Message):
-    await message.reply("Proxy Scraper Bot is running!")
+def main():
+    updater = Updater(BOT_TOKEN, use_context=True)
+    dispatcher = updater.dispatcher
+
+    # Start command handler
+    dispatcher.add_handler(CommandHandler("start", start))
+
+    # Schedule the proxy scraper job
+    job_queue = updater.job_queue
+    job_queue.run_repeating(distribute_proxies, interval=3600, first=0)  # Runs every hour
+
+    # Start the bot
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.create_task(scheduler())
-    executor.start_polling(dp, skip_updates=True)
-    
+    main()
