@@ -21,10 +21,19 @@ def get_country(ip):
 # Fetch proxies from different sources
 def fetch_sslproxies():
     url = "https://www.sslproxies.org/"
-    response = requests.get(url)
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+    response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
+    
     proxies = []
-    for row in soup.find('table', {'id': 'proxylisttable'}).find_all('tr')[1:]:
+    
+    # Attempt to find the table
+    table = soup.find('table', {'id': 'proxylisttable'})
+    if table is None:
+        print("SSL Proxies table not found!")
+        return proxies
+    
+    for row in table.find_all('tr')[1:]:
         cols = row.find_all('td')
         if len(cols) >= 2:
             ip = cols[0].text.strip()
@@ -35,7 +44,8 @@ def fetch_sslproxies():
 
 def fetch_free_proxy_list():
     url = "https://free-proxy-list.net/"
-    response = requests.get(url)
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+    response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     proxies = []
     for row in soup.find('table', {'id': 'proxylisttable'}).find_all('tr')[1:]:
@@ -49,7 +59,8 @@ def fetch_free_proxy_list():
 
 def fetch_us_proxy():
     url = "https://www.us-proxy.org/"
-    response = requests.get(url)
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+    response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     proxies = []
     for row in soup.find('table', {'class': 'table table-striped table-bordered'}).find_all('tr')[1:]:
@@ -63,7 +74,8 @@ def fetch_us_proxy():
 
 def fetch_socks_proxy():
     url = "https://www.socks-proxy.net/"
-    response = requests.get(url)
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+    response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     proxies = []
     for row in soup.find('table', {'class': 'table table-striped table-bordered'}).find_all('tr')[1:]:
@@ -77,7 +89,8 @@ def fetch_socks_proxy():
 
 def fetch_proxyscrape():
     url = "https://www.proxyscrape.com/free-proxy-list"
-    response = requests.get(url)
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+    response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     proxies = []
     for row in soup.find('table', {'class': 'table table-striped table-bordered'}).find_all('tr')[1:]:
@@ -91,7 +104,8 @@ def fetch_proxyscrape():
 
 def fetch_proxy_list_download():
     url = "https://www.proxy-list.download/api/v1/get?type=https"
-    response = requests.get(url)
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+    response = requests.get(url, headers=headers)
     proxies = []
     if response.text:
         proxy_list = response.text.split('\r\n')
@@ -101,7 +115,8 @@ def fetch_proxy_list_download():
 
 def fetch_geonode():
     url = "https://www.geonode.com/free-proxy-list/"
-    response = requests.get(url)
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+    response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     proxies = []
     for row in soup.find('table', {'class': 'table table-striped'}).find_all('tr')[1:]:
@@ -140,7 +155,7 @@ def categorize_proxies(proxies):
 def test_proxy(proxy):
     try:
         start = time.time()
-        response = requests.get("http://www.google.com", proxies={"http": f"http://{proxy}", "https": f"https://{proxy}"}, timeout=5)
+        response = requests.get("http://www.google.com", proxies={"http": f"http://{proxy}", "https": f"https://{proxy}"}, timeout=10)
         end = time.time()
         if response.status_code == 200:
             return end - start
@@ -159,49 +174,23 @@ def send_proxies_to_groups(update: Update, context: CallbackContext):
     all_proxies += fetch_proxy_list_download()
     all_proxies += fetch_geonode()
 
-    update.message.reply_text(f"Fetched {len(all_proxies)} proxies.")
-
-    if not all_proxies:
-        update.message.reply_text("No proxies were fetched.")
-        return
-
-    # Categorize proxies based on quality
     high_quality, medium_quality, low_quality = categorize_proxies(all_proxies)
 
-    # Send high-quality proxies to the high-quality group
-    if high_quality:
-        high_quality_message = "\n".join(high_quality[:5])  # Limit to 5 proxies
-        context.bot.send_message(chat_id=HIGH_QUALITY_GROUP_ID, text=f"High Quality Proxies:\n{high_quality_message}")
+    # Send categorized proxies to respective groups
+    context.bot.send_message(chat_id=HIGH_QUALITY_GROUP_ID, text="\n".join(high_quality))
+    context.bot.send_message(chat_id=MEDIUM_QUALITY_GROUP_ID, text="\n".join(medium_quality))
+    context.bot.send_message(chat_id=LOW_QUALITY_GROUP_ID, text="\n".join(low_quality))
 
-    # Send medium-quality proxies to the medium-quality group
-    if medium_quality:
-        medium_quality_message = "\n".join(medium_quality[:5])  # Limit to 5 proxies
-        context.bot.send_message(chat_id=MEDIUM_QUALITY_GROUP_ID, text=f"Medium Quality Proxies:\n{medium_quality_message}")
-
-    # Send low-quality proxies to the low-quality group
-    if low_quality:
-        low_quality_message = "\n".join(low_quality[:5])  # Limit to 5 proxies
-        context.bot.send_message(chat_id=LOW_QUALITY_GROUP_ID, text=f"Low Quality Proxies:\n{low_quality_message}")
-
-# Command handler for the bot to process /sendproxies
-def send_proxies(update: Update, context: CallbackContext):
-    send_proxies_to_groups(update, context)
-    update.message.reply_text("Proxies have been sent to the appropriate groups.")
-
-# Main function to start the bot
+# Main function to handle bot setup
 def main():
-    token = "7215448892:AAFfMvaXe1j8PUrrfdRvN9XHZpPHlAjOBxk"
-    
-    updater = Updater(token)
+    updater = Updater("7215448892:AAFfMvaXe1j8PUrrfdRvN9XHZpPHlAjOBxk", use_context=True)
+
     dispatcher = updater.dispatcher
+    dispatcher.add_handler(CommandHandler("sendproxies", send_proxies_to_groups))
 
-    # Command to trigger proxy sending to groups
-    dispatcher.add_handler(CommandHandler("sendproxies", send_proxies))
-
-    # Start the bot
     updater.start_polling()
     updater.idle()
 
 if __name__ == "__main__":
     main()
-    
+        
