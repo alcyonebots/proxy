@@ -26,43 +26,34 @@ COOKIES = {
     "dpr": "1.7142857142857142",
 }
 
-# Group IDs for logging
-LOG_GROUP_ID = -1002295649275  # Replace with your log group ID
-AVAILABLE_GROUP_ID = -1002377251885  # Replace with your available group ID
+# Group IDs for logging and available usernames
+LOG_GROUP_ID = -1002295649275  # Replace with the ID of your log group
+AVAILABLE_GROUP_ID = -1002377251885  # Replace with the ID of your available group
+
+# Global set to store already searched usernames
+searched_usernames = set()
 
 # Thread control
 stop_event = Event()
 
+# Function to check if a username is available
 def check_username_availability(username: str) -> (bool, str):
-    """
-    Check if an Instagram username is available.
-    Returns a tuple (is_available, reason).
-    """
-    response = requests.get(
-        INSTAGRAM_URL.format(username), headers=HEADERS, cookies=COOKIES
-    )
-    if response.status_code == 404:
-        return True, "Available"
-    elif response.status_code == 200:
-        return False, "Already taken"
-    else:
-        return False, f"Error: {response.status_code}"
-
-def generate_username(length: int) -> str:
-    """Generate a random username of the given length."""
-    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
-
-def start(update: Update, context: CallbackContext) -> None:
-    """Start command to greet the user."""
-    update.message.reply_text("Welcome! Use /four or /five to check username availability.")
-
-def stop(update: Update, context: CallbackContext) -> None:
-    """Stop the bot from checking usernames."""
-    stop_event.set()
-    update.message.reply_text("Stopping the username check process.")
-
-# Global set to store already searched usernames
-searched_usernames = set()
+    """Check if an Instagram username is available."""
+    try:
+        response = requests.get(
+            INSTAGRAM_URL.format(username), headers=HEADERS, cookies=COOKIES
+        )
+        
+        # If status code is 404, the username is available
+        if response.status_code == 404:
+            return True, "Available"
+        # If status code is 200, the username is taken
+        elif response.status_code == 200:
+            return False, "Username already taken"
+        else:
+            return False, f"Error: {response.status_code}"
+    except requests.exceptions.RequestException as e:
+        return False, f"Request failed: {e}"
 
 def check_usernames(update: Update, context: CallbackContext, length: int) -> None:
     """Generate and check usernames of the specified length."""
@@ -83,63 +74,78 @@ def check_usernames(update: Update, context: CallbackContext, length: int) -> No
             searched_usernames.add(username)
 
             if is_available:
+                # Send available username to available group
                 context.bot.send_message(chat_id=AVAILABLE_GROUP_ID, text=f"Available username: @{username}")
             else:
+                # Log unavailable username to log group
                 context.bot.send_message(chat_id=LOG_GROUP_ID, text=f"Unavailable username: @{username} - Reason: {reason}")
         
         # Wait for 10 seconds after checking 5 usernames
         time.sleep(10)
 
     update.message.reply_text("Process stopped.")
-    
-def check_four(update: Update, context: CallbackContext) -> None:
-    """Check 4-letter usernames."""
-    check_usernames(update, context, 4)
 
-def check_five(update: Update, context: CallbackContext) -> None:
-    """Check 5-letter usernames."""
-    check_usernames(update, context, 5)
+def generate_username(length: int) -> str:
+    """Generate a random username of the given length."""
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
 
+def stop(update: Update, context: CallbackContext) -> None:
+    """Stop the bot from checking usernames."""
+    stop_event.set()
+    update.message.reply_text("Stopping the username check process.")
+
+def start(update: Update, context: CallbackContext) -> None:
+    """Start command to greet the user."""
+    update.message.reply_text("Welcome! Use /four or /five to check username availability.")
+
+# Function to test a specific username
 def test_username(update: Update, context: CallbackContext) -> None:
-    """
-    Test the availability of a specific username.
-    Usage: /test <username>
-    """
+    """Test the availability of a custom 5-letter username."""
     if len(context.args) != 1:
         update.message.reply_text("Please provide exactly one username. Example: /test test123")
         return
 
     username = context.args[0]
+
+    # Ensure the username is exactly 5 characters
     if len(username) != 5:
         update.message.reply_text("Please provide a username with exactly 5 characters.")
         return
 
+    # Skip if the username has already been checked
+    if username in searched_usernames:
+        update.message.reply_text(f"The username @{username} has already been checked.")
+        return
+
+    # Check the availability of the custom username
     is_available, reason = check_username_availability(username)
+
+    # Add the username to the set of searched usernames
+    searched_usernames.add(username)
 
     if is_available:
         update.message.reply_text(f"The username @{username} is available!")
+        context.bot.send_message(chat_id=AVAILABLE_GROUP_ID, text=f"Available username: @{username}")
     else:
         update.message.reply_text(f"The username @{username} is unavailable. Reason: {reason}")
-        
+        context.bot.send_message(chat_id=LOG_GROUP_ID, text=f"Unavailable username: @{username} - Reason: {reason}")
 
+# Setup the main function with dispatcher
 def main():
-    """Run the bot."""
-    # Replace 'YOUR_BOT_TOKEN' with your bot's token
+    """Start the bot."""
     updater = Updater("7689326948:AAHl9eqQk1_-130IihUQ2z0xn-VSzVRU1Ig", use_context=True)
     dispatcher = updater.dispatcher
 
-    # Command handlers
+    # Add command handlers
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("stop", stop))
-    dispatcher.add_handler(CommandHandler("four", check_four))
-    dispatcher.add_handler(CommandHandler("five", check_five))
-    dispatcher.add_handler(CommandHandler("test", test_username, pass_args=True))
-    
+    dispatcher.add_handler(CommandHandler("four", check_usernames, pass_args=True, pass_job_queue=True))
+    dispatcher.add_handler(CommandHandler("five", check_usernames, pass_args=True, pass_job_queue=True))
+    dispatcher.add_handler(CommandHandler("test", test_username, pass_args=True))  # Add /test handler
 
-    # Start polling
+    # Start the Bot
     updater.start_polling()
     updater.idle()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
-    
