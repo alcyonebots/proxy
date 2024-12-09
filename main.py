@@ -3,130 +3,102 @@ import string
 import requests
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
+from threading import Event
 
-# Global variable to store the job instance and searched usernames
-search_job = None
-searched_usernames = set()  # Set to track searched usernames
+# Instagram URL and headers
+INSTAGRAM_URL = "https://www.instagram.com/{}/"
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+}
 
-# Function to check Instagram username availability
-def check_instagram_username(username):
-    url = f"https://www.instagram.com/{username}/"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://www.instagram.com/"
-    }
-    cookies = {
-        "sessionid": "70428131521%3AJMtbf1lvxIIeUd%3A12%3AAYfCryRL9DNQQdu8CI58GsQUVK4zB2ubRnqCh-g3sg",
-        "csrftoken": "VgyMLeMtGSvpEZklyvziwy4zq6bWwFRD",
-        "mid": "ZvlJagABAAGw-dfijK9dT9DsMV3c",
-        "ig_did": "F23ED838-1118-44F5-8A2A-DECFF8DDA9C6",
-        "ds_user_id": "70428131521",
-        "rur": "\"HIL\\05470428131521\\0541763029054:01f7d179c259025912db145c54cf1363da9d391b8bd11a3ed3de39cbcdee1b78a5824040\""
-    }
-    try:
-        response = requests.get(url, headers=headers, cookies=cookies, timeout=10, allow_redirects=False)
-        print(f"Checked {username}: Status Code {response.status_code}")
-        
-        if response.status_code == 404:
-            return True  # Username is available
-        elif response.status_code == 200:
-            return False  # Username is taken
-        elif response.status_code == 302:
-            print(f"Redirect detected for {username}. Likely a bot detection mechanism.")
-            return False  # Treat redirects as unavailable for safety
-        else:
-            print(f"Unexpected response for {username}: {response.status_code}")
-            return False
-    except requests.exceptions.RequestException as e:
-        print(f"Error checking username {username}: {e}")
-        return False
+# Instagram cookies (Replace with your cookies)
+COOKIES = {
+    "mid": "ZvgqmAABAAGOGTQsZ-y0A4LdB1sE",
+    "datr": "lyr4Zi0YSNjckLSCrAEA67xD",
+    "ig_did": "1D6BC97F-7C04-4BF3-B1D0-081BE10E9A35",
+    "ig_nrcb": "1",
+    "csrftoken": "WmbdCZloqlyGUBGDrDiMDnhC9eRV8lp0",
+    "wd": "630x1247",
+    "ds_user_id": "65808199746",
+    "sessionid": "65808199746%3AryjTYAU52ULMSu%3A8%3AAYcTM05WjoD57pOfwDq8Dsiw9mRtAC753XxDfecalA",
+    "rur": "PRN,65808199746,1765291636:01f7aabbf994d760f400591ff2e5249cb1c84b40ad6c7ec9cc438e372f67e248d033837c",
+    "dpr": "1.7142857142857142",
+}
 
-# Example usage
-username = "testuser1234"
-is_available = check_instagram_username(username)
-print(f"Is '{username}' available? {'Yes' if is_available else 'No'}")
+# Group IDs for logging
+LOG_GROUP_ID = -1002295649275 # Replace with your log group ID
+AVAILABLE_GROUP_ID = -1002377251885  # Replace with your available group ID
 
-# Function to generate random 4-5 letter usernames (including numbers)
-def generate_random_username(length):
+# Thread control
+stop_event = Event()
+
+def check_username_availability(username: str) -> (bool, str):
+    """
+    Check if an Instagram username is available.
+    Returns a tuple (is_available, reason).
+    """
+    response = requests.get(
+        INSTAGRAM_URL.format(username), headers=HEADERS, cookies=COOKIES
+    )
+    if response.status_code == 404:
+        return True, "Available"
+    elif response.status_code == 200:
+        return False, "Already taken"
+    else:
+        return False, f"Error: {response.status_code}"
+
+def generate_username(length: int) -> str:
+    """Generate a random username of the given length."""
     return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
 
-# Function to search for available usernames
-def search_usernames(context: CallbackContext):
-    job = context.job
-    chat_id = job.context['chat_id']  # Chat ID to send messages
-    username_length = job.context['length']  # Length of the username
-    for _ in range(2):  # Check 2 usernames per iteration (reduce to avoid rate limits)
-        username = generate_random_username(username_length)
-        if username in searched_usernames:
-            continue
-        searched_usernames.add(username)
-        context.bot.send_message(chat_id=chat_id, text=f"Searching for username: {username}")
-        
-        if check_instagram_username(username):
-            context.bot.send_message(chat_id=chat_id, text=f"✅ Available username found: {username}")
+def start(update: Update, context: CallbackContext) -> None:
+    """Start command to greet the user."""
+    update.message.reply_text("Welcome! Use /four or /five to check username availability.")
+
+def stop(update: Update, context: CallbackContext) -> None:
+    """Stop the bot from checking usernames."""
+    stop_event.set()
+    update.message.reply_text("Stopping the username check process.")
+
+def check_usernames(update: Update, context: CallbackContext, length: int) -> None:
+    """Generate and check usernames of the specified length."""
+    stop_event.clear()
+    update.message.reply_text(f"Starting to check {length}-letter usernames...")
+
+    while not stop_event.is_set():
+        username = generate_username(length)
+        is_available, reason = check_username_availability(username)
+
+        if is_available:
+            context.bot.send_message(chat_id=AVAILABLE_GROUP_ID, text=f"Available username: @{username}")
         else:
-            context.bot.send_message(chat_id=chat_id, text=f"❌ Username not available: {username}")
+            context.bot.send_message(chat_id=LOG_GROUP_ID, text=f"Unavailable username: @{username} - Reason: {reason}")
 
-# Start command - start the username search based on the selected type
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text(
-        "Welcome! Use /four to search for 4-letter usernames or /five to search for 5-letter usernames."
-    )
+    update.message.reply_text("Process stopped.")
 
-# Start searching for 4-letter usernames
-def four(update: Update, context: CallbackContext):
-    global search_job
-    chat_id = update.message.chat_id
-    if search_job:
-        update.message.reply_text("Already searching for usernames. Use /stop to stop the search.")
-        return
-    search_job = context.job_queue.run_repeating(
-        search_usernames, interval=60, first=0, context={'chat_id': chat_id, 'length': 4}
-    )
-    update.message.reply_text("Started searching for 4-letter usernames.")
+def check_four(update: Update, context: CallbackContext) -> None:
+    """Check 4-letter usernames."""
+    check_usernames(update, context, 4)
 
-# Start searching for 5-letter usernames
-def five(update: Update, context: CallbackContext):
-    global search_job
-    chat_id = update.message.chat_id
-    if search_job:
-        update.message.reply_text("Already searching for usernames. Use /stop to stop the search.")
-        return
-    search_job = context.job_queue.run_repeating(
-        search_usernames, interval=60, first=0, context={'chat_id': chat_id, 'length': 5}
-    )
-    update.message.reply_text("Started searching for 5-letter usernames.")
+def check_five(update: Update, context: CallbackContext) -> None:
+    """Check 5-letter usernames."""
+    check_usernames(update, context, 5)
 
-# Stop command - stop the username search
-def stop(update: Update, context: CallbackContext):
-    global search_job
-    if search_job:
-        search_job.schedule_removal()
-        search_job = None
-        update.message.reply_text("Stopped the username search.")
-    else:
-        update.message.reply_text("No search process is running.")
-
-# Main function to run the bot
 def main():
-    # Replace 'YOUR_TELEGRAM_BOT_TOKEN' with your bot's token
+    """Run the bot."""
+    # Replace 'YOUR_BOT_TOKEN' with your bot's token
     updater = Updater("7689326948:AAHl9eqQk1_-130IihUQ2z0xn-VSzVRU1Ig", use_context=True)
+    dispatcher = updater.dispatcher
 
-    # Dispatcher to register handlers
-    dp = updater.dispatcher
+    # Command handlers
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("stop", stop))
+    dispatcher.add_handler(CommandHandler("four", check_four))
+    dispatcher.add_handler(CommandHandler("five", check_five))
 
-    # Register commands
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("four", four))
-    dp.add_handler(CommandHandler("five", five))
-    dp.add_handler(CommandHandler("stop", stop))
-
-    # Start the bot
+    # Start polling
     updater.start_polling()
     updater.idle()
 
 if __name__ == "__main__":
     main()
-in()
-        
