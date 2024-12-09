@@ -169,7 +169,7 @@ def scrape_proxies():
         print(f"Error scraping from HideMyName: {e}")
 
     return proxies
-    
+
 def test_proxy_latency(proxy):
     try:
         start = time.time()
@@ -188,6 +188,7 @@ def categorize_proxies(proxies):
 
     for proxy in proxies:
         latency = test_proxy_latency(proxy)
+        print(f"Testing proxy {proxy['ip']}:{proxy['port']} | Latency: {latency:.2f}s")
         formatted_proxy = f"{proxy['ip']}:{proxy['port']} | Type: {proxy['type']} | Country: {proxy['country']} | Latency: {latency:.2f}s"
         if latency < 0.5:  # Less than 500 ms
             high_quality.append(formatted_proxy)
@@ -200,12 +201,18 @@ def categorize_proxies(proxies):
 
 def distribute_proxies(context: CallbackContext):
     proxies = scrape_proxies()
+    print(f"Scraped {len(proxies)} proxies.")
     if not proxies:
         print("No proxies found.")
         return
 
     high_quality, medium_quality, low_quality = categorize_proxies(proxies)
 
+    print(f"High-quality proxies: {len(high_quality)}")
+    print(f"Medium-quality proxies: {len(medium_quality)}")
+    print(f"Low-quality proxies: {len(low_quality)}")
+
+    # Sending messages if proxies are available
     if high_quality:
         print(f"Sending {len(high_quality)} high-quality proxies...")
         context.bot.send_message(
