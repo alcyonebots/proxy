@@ -61,6 +61,9 @@ def stop(update: Update, context: CallbackContext) -> None:
     stop_event.set()
     update.message.reply_text("Stopping the username check process.")
 
+# Global set to store already searched usernames
+searched_usernames = set()
+
 def check_usernames(update: Update, context: CallbackContext, length: int) -> None:
     """Generate and check usernames of the specified length."""
     stop_event.clear()
@@ -69,7 +72,15 @@ def check_usernames(update: Update, context: CallbackContext, length: int) -> No
     while not stop_event.is_set():
         for _ in range(5):  # Check 5 usernames in a batch
             username = generate_username(length)
+
+            # Skip if the username has already been checked
+            if username in searched_usernames:
+                continue
+
             is_available, reason = check_username_availability(username)
+
+            # Add the username to the set of searched usernames
+            searched_usernames.add(username)
 
             if is_available:
                 context.bot.send_message(chat_id=AVAILABLE_GROUP_ID, text=f"Available username: @{username}")
@@ -80,7 +91,7 @@ def check_usernames(update: Update, context: CallbackContext, length: int) -> No
         time.sleep(10)
 
     update.message.reply_text("Process stopped.")
-
+    
 def check_four(update: Update, context: CallbackContext) -> None:
     """Check 4-letter usernames."""
     check_usernames(update, context, 4)
