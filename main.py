@@ -238,6 +238,11 @@ def distribute_proxies(context: CallbackContext):
 def start(update, context):
     update.message.reply_text("Proxy Scraper Bot is running!")
 
+def scrape(update, context):
+    """Trigger the proxy scraping and sending process."""
+    update.message.reply_text("Starting proxy scraping... Please wait a moment.")
+    distribute_proxies(context)
+
 def main():
     updater = Updater(BOT_TOKEN, use_context=True)
     dispatcher = updater.dispatcher
@@ -245,9 +250,8 @@ def main():
     # Start command handler
     dispatcher.add_handler(CommandHandler("start", start))
 
-    # Schedule the proxy scraper job
-    job_queue = updater.job_queue
-    job_queue.run_repeating(distribute_proxies, interval=3600, first=0)  # Runs every hour
+    # Scrape command handler
+    dispatcher.add_handler(CommandHandler("scrape", scrape))
 
     # Start the bot
     updater.start_polling()
