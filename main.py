@@ -1,209 +1,143 @@
+import requests
 import asyncio
-import logging
-import re
-import socks
-import socket
-import httpx
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters
-from time import time
 from bs4 import BeautifulSoup
-import urllib.request
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import ParseMode
+from aiogram.utils import executor
+import time
 
-# Setup logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Replace these with your actual bot token and group IDs
+BOT_TOKEN = "7215448892:AAFfMvaXe1j8PUrrfdRvN9XHZpPHlAjOBxk"
+HIGH_QUALITY_GROUP = -1002377251885  # Replace with your High-quality group ID
+MEDIUM_QUALITY_GROUP = -1002295649275  # Replace with your Medium-quality group ID
+LOW_QUALITY_GROUP = -1002299532202  # Replace with your Low-quality group ID
 
-# Proxy Scraping Classes (same as your original code)
-class Scraper:
-    def __init__(self, method, _url):
-        self.method = method
-        self._url = _url
+# Initialize bot and dispatcher
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher(bot)
 
-    def get_url(self, **kwargs):
-        return self._url.format(**kwargs, method=self.method)
-
-    async def get_response(self, client):
-        return await client.get(self.get_url())
-
-    async def handle(self, response):
-        return response.text
-
-    async def scrape(self, client):
-        response = await self.get_response(client)
-        proxies = await self.handle(response)
-        pattern = re.compile(r"\d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})?")
-        return re.findall(pattern, proxies)
-
-class ProxyScrapeScraper(Scraper):
-    def __init__(self, method, timeout=1000, country="All"):
-        self.timout = timeout
-        self.country = country
-        super().__init__(method,
-                         "https://api.proxyscrape.com/?request=getproxies"
-                         "&proxytype={method}"
-                         "&timeout={timout}"
-                         "&country={country}")
-
-    def get_url(self, **kwargs):
-        return super().get_url(timout=self.timout, country=self.country, **kwargs)
-
-class GeneralTableScraper(Scraper):
-    async def handle(self, response):
-        soup = BeautifulSoup(response.text, "html.parser")
-        proxies = set()
-        table = soup.find("table", attrs={"class": "table table-striped table-bordered"})
-        for row in table.findAll("tr"):
-            count = 0
-            proxy = ""
-            for cell in row.findAll("td"):
-                if count == 1:
-                    proxy += ":" + cell.text.replace("&nbsp;", "")
-                    proxies.add(proxy)
-                    break
-                proxy += cell.text.replace("&nbsp;", "")
-                count += 1
-        return "\n".join(proxies)
-
-scrapers = [
-    ProxyScrapeScraper("http"),
-    ProxyScrapeScraper("socks4"),
-    ProxyScrapeScraper("socks5"),
-    GeneralTableScraper("http"),
+PROXY_SOURCES = [
+    "https://www.freeproxylists.net/",
+    "https://www.sslproxies.org/",
+    "https://free-proxy-list.net/",
+    "https://proxy-daily.com/",
+    "https://www.us-proxy.org/",
+    "https://www.socks-proxy.net/",
+    "https://www.proxynova.com/proxy-server-list/",
+    "https://hidemy.name/en/proxy-list/"
 ]
 
-# Telegram Bot Commands
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text("Welcome to Proxy Bot! Type /scrape <proxy_type> to scrape and check proxies.")
-    update.message.reply_text("Available proxy types: http, socks4, socks5")
-
-def scrape(update: Update, context: CallbackContext) -> None:
-    # Parse the proxy type from the command
-    proxy_type = context.args[0] if context.args else None
-    if not proxy_type or proxy_type not in ['http', 'socks4', 'socks5']:
-        update.message.reply_text("Please provide a valid proxy type: http, socks4, or socks5.")
-        return
-    
-    update.message.reply_text(f"Scraping {proxy_type} proxies, please wait...")
-
-    # Start scraping and checking
-    asyncio.run(scrape_and_check_proxies(proxy_type, update))
-
-async def scrape_and_check_proxies(proxy_type, update: Update):
+def scrape_proxies():
     proxies = []
-    client = httpx.AsyncClient(follow_redirects=True)
 
-    # Scrape proxies based on the selected type
-    proxy_scrapers = [s for s in scrapers if s.method == proxy_type]
+    # Parse Free Proxy Lists
+    try:
+        url = "https://www.freeproxylists.net/"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        rows = soup.find_all("tr")
+        for row in rows:
+            cols = row.find_all("td")
+            if len(cols) >= 3:
+                ip = cols[0].text.strip()
+                port = cols[1].text.strip()
+                country = cols[2].text.strip()
+                proxy_type = "HTTP"
+                proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
+    except Exception as e:
+        print(f"Error scraping from Free Proxy Lists: {e}")
 
-    tasks = []
-    async def scrape_scraper(scraper):
-        try:
-            proxies.extend(await scraper.scrape(client))
-        except Exception:
-            pass
+    # Parse SSL Proxies
+    try:
+        url = "https://www.sslproxies.org/"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        rows = soup.select("table tbody tr")
+        for row in rows:
+            cols = row.find_all("td")
+            if len(cols) >= 3:
+                ip = cols[0].text.strip()
+                port = cols[1].text.strip()
+                country = cols[3].text.strip()  # Assuming the 4th column is Country
+                proxy_type = "HTTP/HTTPS"
+                proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
+    except Exception as e:
+        print(f"Error scraping from SSL Proxies: {e}")
 
-    for scraper in proxy_scrapers:
-        tasks.append(asyncio.ensure_future(scrape_scraper(scraper)))
+    # Parse Proxy Daily
+    try:
+        url = "https://proxy-daily.com/"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        proxy_blocks = soup.find_all("div", class_="centeredProxyList freeProxyStyle")
+        for block in proxy_blocks:
+            proxy_lines = block.text.strip().split("\n")
+            for line in proxy_lines:
+                if ":" in line:
+                    ip, port = line.split(":")
+                    proxies.append({"ip": ip.strip(), "port": port.strip(), "type": "HTTP", "country": "Unknown"})
+    except Exception as e:
+        print(f"Error scraping from Proxy Daily: {e}")
 
-    await asyncio.gather(*tasks)
-    await client.aclose()
+    return proxies
 
-    proxies = set(proxies)
-    if not proxies:
-        update.message.reply_text("No proxies found!")
-        return
-
-    # Categorize proxies by quality
-    high, medium, low = await categorize_proxies(proxies)
-
-    # Send categorized proxies to respective Telegram groups
-    send_to_group(update, high, "High-quality Proxies")
-    send_to_group(update, medium, "Medium-quality Proxies")
-    send_to_group(update, low, "Low-quality Proxies")
-
-    update.message.reply_text(f"Found and categorized {len(proxies)} proxies.")
+def test_proxy_latency(proxy):
+    try:
+        start = time.time()
+        response = requests.get("https://httpbin.org/ip", proxies={"http": f"http://{proxy['ip']}:{proxy['port']}"}, timeout=5)
+        if response.status_code == 200:
+            latency = time.time() - start
+            return latency
+    except:
+        return float('inf')  # Treat unresponsive proxies as having infinite latency
+    return float('inf')
 
 async def categorize_proxies(proxies):
-    high = []
-    medium = []
-    low = []
-
-    site = "https://www.google.com"  # Default site to test proxies
+    high_quality = []
+    medium_quality = []
+    low_quality = []
 
     for proxy in proxies:
-        result = check_proxy(proxy, site)
-        if result == "high":
-            high.append(proxy)
-        elif result == "medium":
-            medium.append(proxy)
-        else:
-            low.append(proxy)
+        latency = test_proxy_latency(proxy)
+        formatted_proxy = f"{proxy['ip']}:{proxy['port']} | Type: {proxy['type']} | Country: {proxy['country']} | Latency: {latency:.2f}s"
+        if latency < 0.5:  # Less than 500 ms
+            high_quality.append(formatted_proxy)
+        elif 0.5 <= latency <= 1.5:  # Between 500 ms and 1500 ms
+            medium_quality.append(formatted_proxy)
+        else:  # Greater than 1500 ms
+            low_quality.append(formatted_proxy)
 
-    return high, medium, low
+    return high_quality, medium_quality, low_quality
 
-def check_proxy(proxy, site):
-    try:
-        proxy_split = proxy.split(":")
-        host = proxy_split[0]
-        port = int(proxy_split[1])
+async def distribute_proxies():
+    proxies = scrape_proxies()
+    if not proxies:
+        print("No proxies found.")
+        return
 
-        socks.set_default_proxy(socks.SOCKS5, host, port)
-        socket.socket = socks.socksocket
+    high_quality, medium_quality, low_quality = await categorize_proxies(proxies)
 
-        start_time = time()
-        response = urllib.request.urlopen(site, timeout=10)
-        end_time = time()
+    if high_quality:
+        await bot.send_message(HIGH_QUALITY_GROUP, f"High Quality Proxies:\n```{chr(10).join(high_quality)}```", parse_mode=ParseMode.MARKDOWN)
+    if medium_quality:
+        await bot.send_message(MEDIUM_QUALITY_GROUP, f"Medium Quality Proxies:\n```{chr(10).join(medium_quality)}```", parse_mode=ParseMode.MARKDOWN)
+    if low_quality:
+        await bot.send_message(LOW_QUALITY_GROUP, f"Low Quality Proxies:\n```{chr(10).join(low_quality)}```", parse_mode=ParseMode.MARKDOWN)
 
-        response_time = end_time - start_time
-        if response_time < 1:
-            return "high"  # fast response -> high quality
-        elif response_time < 2:
-            return "medium"  # average response -> medium quality
-        else:
-            return "low"  # slow response -> low quality
-    except Exception:
-        return "low"  # if proxy fails, consider it low quality
+async def scheduler():
+    while True:
+        await distribute_proxies()
+        await asyncio.sleep(3600)  # 1 hour interval
 
-def send_to_group(update, proxies, category):
-    if proxies:
-        # Replace with your actual group chat IDs
-        high_quality_group_id = -1002377251885
-        medium_quality_group_id = -1002295649275
-        low_quality_group_id = -1002299532202
+@dp.message_handler(commands=["start"])
+async def start_handler(message: types.Message):
+    await message.reply("Proxy Scraper Bot is running!")
 
-        if category == "High-quality Proxies":
-            group_id = high_quality_group_id
-        elif category == "Medium-quality Proxies":
-            group_id = medium_quality_group_id
-        else:
-            group_id = low_quality_group_id
-
-        message = f"{category}:\n" + "\n".join(proxies)
-        update.bot.send_message(chat_id=group_id, text=message)
-
-# Error handling
-def error(update: Update, context: CallbackContext) -> None:
-    logger.warning(f'Update "{update}" caused error "{context.error}"')
-
-def main():
-    # Telegram Bot Token from @BotFather
-    token = '7215448892:AAFfMvaXe1j8PUrrfdRvN9XHZpPHlAjOBxk'
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    loop.create_task(scheduler())
+    executor.start_polling(dp, skip_updates=True)
     
-    updater = Updater(token)
-    dispatcher = updater.dispatcher
-    
-    # Commands
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("scrape", scrape))
-    
-    # Error handling
-    dispatcher.add_error_handler(error)
-    
-    # Start the bot
-    updater.start_polling()
-    updater.idle()
-
-if __name__ == '__main__':
-    main()
-            
