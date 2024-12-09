@@ -132,33 +132,6 @@ def fetch_proxy_list_download():
             proxies.append(f"{proxy}:https")
     return proxies
 
-def fetch_geonode():
-    url = "https://www.geonode.com/free-proxy-list"
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
-    response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    
-    proxies = []
-    try:
-        # Check if the table with class 'table table-striped' exists
-        table = soup.find('table', {'class': 'table table-striped'})
-        if table is None:
-            print(f"Error: Table with class 'table table-striped' not found on {url}")
-            return proxies  # Return an empty list if no table found
-        
-        # Parse the table rows
-        for row in table.find_all('tr')[1:]:  # Skipping header row
-            cols = row.find_all('td')
-            if len(cols) >= 2:
-                ip = cols[0].text.strip()
-                port = cols[1].text.strip()
-                proxy_type = cols[4].text.strip()  # Proxy type column (e.g., HTTP, HTTPS, SOCKS4, SOCKS5)
-                proxies.append(f"{ip}:{port}:{proxy_type}")
-    except Exception as e:
-        print(f"Error scraping Geonode: {e}")
-    
-    return proxies
-
 # Function to categorize proxies based on response time (simplified)
 def categorize_proxies(proxies):
     high_quality = []
@@ -203,7 +176,6 @@ def send_proxies_to_groups(update: Update, context: CallbackContext):
     all_proxies += fetch_socks_proxy()
     all_proxies += fetch_proxyscrape()
     all_proxies += fetch_proxy_list_download()
-    all_proxies += fetch_geonode()
 
     high_quality, medium_quality, low_quality = categorize_proxies(all_proxies)
 
