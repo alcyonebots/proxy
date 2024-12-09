@@ -96,31 +96,6 @@ def fetch_socks_proxy():
             proxy_type = "SOCKS4" if "socks4" in cols[3].text.lower() else "SOCKS5"
             proxies.append(f"{ip}:{port}:{proxy_type}")
     return proxies
-
-def fetch_proxyscrape():
-    url = "https://www.proxyscrape.com/free-proxy-list"
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
-    response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    
-    proxies = []
-    
-    # Check if the table exists
-    table = soup.find('table', {'class': 'table table-striped table-bordered'})
-    if table is None:
-        print("Table with class 'table table-striped table-bordered' not found on proxyscrape!")
-        return proxies  # Return empty list if the table is not found
-    
-    # Proceed if table is found
-    for row in table.find_all('tr')[1:]:  # Skip the header row
-        cols = row.find_all('td')
-        if len(cols) >= 2:
-            ip = cols[0].text.strip()
-            port = cols[1].text.strip()
-            proxy_type = cols[4].text.strip()  # Proxy type column (e.g., HTTP, HTTPS, SOCKS4, SOCKS5)
-            proxies.append(f"{ip}:{port}:{proxy_type}")
-    
-    return proxies
 def fetch_proxy_list_download():
     url = "https://www.proxy-list.download/api/v1/get?type=https"
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
@@ -174,7 +149,6 @@ def send_proxies_to_groups(update: Update, context: CallbackContext):
     all_proxies += fetch_free_proxy_list()
     all_proxies += fetch_us_proxy()
     all_proxies += fetch_socks_proxy()
-    all_proxies += fetch_proxyscrape()
     all_proxies += fetch_proxy_list_download()
 
     high_quality, medium_quality, low_quality = categorize_proxies(all_proxies)
