@@ -146,7 +146,6 @@ def categorize_proxies(proxies):
                 low_quality.append(proxy_with_info)
     
     return high_quality, medium_quality, low_quality
-
 # Function to handle the /proxies command
 def proxies(update: Update, context: CallbackContext):
     # Fetch proxies from multiple sources
@@ -160,20 +159,38 @@ def proxies(update: Update, context: CallbackContext):
     all_proxies += fetch_geonode()
 
     update.message.reply_text(f"Fetched {len(all_proxies)} proxies.")
+
+    if not all_proxies:
+        update.message.reply_text("No proxies were fetched.")
+        return
     
     # Categorize proxies based on quality, country, and type
     high_quality, medium_quality, low_quality = categorize_proxies(all_proxies)
-    
-    # Send categorized proxies to the user
-    response = "High Quality Proxies:\n"
-    response += '\n'.join(high_quality[:5]) if high_quality else "None"
-    response += "\n\nMedium Quality Proxies:\n"
-    response += '\n'.join(medium_quality[:5]) if medium_quality else "None"
-    response += "\n\nLow Quality Proxies:\n"
-    response += '\n'.join(low_quality[:5]) if low_quality else "None"
 
-    update.message.reply_text(response)
+    # Send high-quality proxies to the user
+    if high_quality:
+        high_quality_response = "High Quality Proxies:\n"
+        high_quality_response += '\n'.join(high_quality[:5])  # Limit to 5 proxies
+        update.message.reply_text(high_quality_response)
+    else:
+        update.message.reply_text("No high-quality proxies found.")
 
+    # Send medium-quality proxies to the user
+    if medium_quality:
+        medium_quality_response = "\nMedium Quality Proxies:\n"
+        medium_quality_response += '\n'.join(medium_quality[:5])  # Limit to 5 proxies
+        update.message.reply_text(medium_quality_response)
+    else:
+        update.message.reply_text("No medium-quality proxies found.")
+
+    # Send low-quality proxies to the user
+    if low_quality:
+        low_quality_response = "\nLow Quality Proxies:\n"
+        low_quality_response += '\n'.join(low_quality[:5])  # Limit to 5 proxies
+        update.message.reply_text(low_quality_response)
+    else:
+        update.message.reply_text("No low-quality proxies found.")
+        
 # Main function to start the bot
 def main():
     # Replace with your own bot's token
