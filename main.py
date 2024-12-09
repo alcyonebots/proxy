@@ -73,6 +73,24 @@ def scrape_proxies():
                 proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
     except Exception as e:
         print(f"Error scraping from US Proxy: {e}")
+
+    # Proxy source 4: socks-proxy.net
+    try:
+        url = "https://www.socks-proxy.net/"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        rows = soup.find("table", {"class": "table-striped"}).find_all("tr")
+        for row in rows[1:]:
+            cols = row.find_all("td")
+            if len(cols) >= 3:
+                ip = cols[0].text.strip()
+                port = cols[1].text.strip()
+                country = cols[2].text.strip()
+                proxy_type = "SOCKS5"  # socks-proxy.net provides SOCKS5 proxies
+                proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
+    except Exception as e:
+        print(f"Error scraping from Socks Proxy: {e}")
     
     return proxies
 
