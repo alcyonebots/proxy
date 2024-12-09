@@ -74,9 +74,11 @@ def fetch_proxyscrape():
     proxies = []
     for row in soup.find_all("tr")[1:]:
         cols = row.find_all("td")
-        if len(cols) > 0:
+        # Check if the row contains at least 2 columns (IP and port)
+        if len(cols) > 1:
             ip = cols[0].text.strip()
             port = cols[1].text.strip()
+            # Add the proxy with its type (HTTP/HTTPS)
             proxies.append(f"{ip}:{port} (HTTP/HTTPS)")
     return proxies
 
