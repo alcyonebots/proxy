@@ -47,14 +47,24 @@ def fetch_free_proxy_list():
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
+    
     proxies = []
-    for row in soup.find('table', {'id': 'proxylisttable'}).find_all('tr')[1:]:
+    
+    # Check if the table exists
+    table = soup.find('table', {'id': 'proxylisttable'})
+    if table is None:
+        print("Table with id 'proxylisttable' not found!")
+        return proxies  # Return empty list if the table is not found
+    
+    # Proceed if table is found
+    for row in table.find_all('tr')[1:]:
         cols = row.find_all('td')
         if len(cols) >= 2:
             ip = cols[0].text.strip()
             port = cols[1].text.strip()
             proxy_type = "HTTPS" if "https" in cols[4].text.lower() else "HTTP"
             proxies.append(f"{ip}:{port}:{proxy_type}")
+    
     return proxies
 
 def fetch_us_proxy():
