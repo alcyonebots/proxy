@@ -14,7 +14,7 @@ def get_country(ip):
     except requests.RequestException:
         return "Unknown"
 
-# Fetch proxies from various sources
+# Fetch proxies from various sources and identify their type
 def fetch_sslproxies():
     url = "https://www.sslproxies.org/"
     response = requests.get(url)
@@ -25,7 +25,7 @@ def fetch_sslproxies():
         if len(cols) > 0:
             ip = cols[0].text.strip()
             port = cols[1].text.strip()
-            proxies.append(f"{ip}:{port}")
+            proxies.append(f"{ip}:{port} (HTTP/HTTPS)")
     return proxies
 
 def fetch_free_proxy_list():
@@ -38,7 +38,7 @@ def fetch_free_proxy_list():
         if len(cols) > 0:
             ip = cols[0].text.strip()
             port = cols[1].text.strip()
-            proxies.append(f"{ip}:{port}")
+            proxies.append(f"{ip}:{port} (HTTP/HTTPS)")
     return proxies
 
 def fetch_us_proxy():
@@ -51,7 +51,7 @@ def fetch_us_proxy():
         if len(cols) > 0:
             ip = cols[0].text.strip()
             port = cols[1].text.strip()
-            proxies.append(f"{ip}:{port}")
+            proxies.append(f"{ip}:{port} (HTTP/HTTPS)")
     return proxies
 
 def fetch_socks_proxy():
@@ -64,7 +64,7 @@ def fetch_socks_proxy():
         if len(cols) > 0:
             ip = cols[0].text.strip()
             port = cols[1].text.strip()
-            proxies.append(f"{ip}:{port}")
+            proxies.append(f"{ip}:{port} (SOCKS4/SOCKS5)")
     return proxies
 
 def fetch_proxyscrape():
@@ -77,7 +77,7 @@ def fetch_proxyscrape():
         if len(cols) > 0:
             ip = cols[0].text.strip()
             port = cols[1].text.strip()
-            proxies.append(f"{ip}:{port}")
+            proxies.append(f"{ip}:{port} (HTTP/HTTPS)")
     return proxies
 
 def fetch_proxy_list_download():
@@ -90,7 +90,7 @@ def fetch_proxy_list_download():
         if len(cols) > 0:
             ip = cols[0].text.strip()
             port = cols[1].text.strip()
-            proxies.append(f"{ip}:{port}")
+            proxies.append(f"{ip}:{port} (HTTP/HTTPS)")
     return proxies
 
 def fetch_geonode():
@@ -103,7 +103,7 @@ def fetch_geonode():
         if len(cols) > 0:
             ip = cols[0].text.strip()
             port = cols[1].text.strip()
-            proxies.append(f"{ip}:{port}")
+            proxies.append(f"{ip}:{port} (HTTP/HTTPS)")
     return proxies
 
 # Function to test proxy quality by response time
@@ -119,24 +119,29 @@ def test_proxy(proxy):
     except requests.RequestException:
         return None
 
-# Categorize proxies based on their response time and include country info
+# Categorize proxies based on their response time and include country and type
 def categorize_proxies(proxies):
     high_quality = []
     medium_quality = []
     low_quality = []
     
     for proxy in proxies:
-        ip, port = proxy.split(":")
+        # Extracting IP, Port, and Type
+        proxy_info = proxy.split(" ")
+        ip, port = proxy_info[0].split(":")
+        proxy_type = proxy_info[1] if len(proxy_info) > 1 else "Unknown"
         country = get_country(ip)
+        
+        # Testing response time
         response_time = test_proxy(proxy)
         if response_time is not None:
-            proxy_info = f"{proxy} (Country: {country})"
+            proxy_with_info = f"{proxy} (Country: {country}, Type: {proxy_type})"
             if response_time < 1:
-                high_quality.append(proxy_info)
+                high_quality.append(proxy_with_info)
             elif 1 <= response_time < 3:
-                medium_quality.append(proxy_info)
+                medium_quality.append(proxy_with_info)
             else:
-                low_quality.append(proxy_info)
+                low_quality.append(proxy_with_info)
     
     return high_quality, medium_quality, low_quality
 
@@ -154,7 +159,7 @@ def proxies(update: Update, context: CallbackContext):
 
     update.message.reply_text(f"Fetched {len(all_proxies)} proxies.")
     
-    # Categorize proxies based on quality and country
+    # Categorize proxies based on quality, country, and type
     high_quality, medium_quality, low_quality = categorize_proxies(all_proxies)
     
     # Send categorized proxies to the user
@@ -184,4 +189,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-            
+    
