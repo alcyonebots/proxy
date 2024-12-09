@@ -1,6 +1,7 @@
 import random
 import string
 import requests
+import time
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
 from threading import Event
@@ -26,7 +27,7 @@ COOKIES = {
 }
 
 # Group IDs for logging
-LOG_GROUP_ID = -1002295649275 # Replace with your log group ID
+LOG_GROUP_ID = -1002295649275  # Replace with your log group ID
 AVAILABLE_GROUP_ID = -1002377251885  # Replace with your available group ID
 
 # Thread control
@@ -63,16 +64,20 @@ def stop(update: Update, context: CallbackContext) -> None:
 def check_usernames(update: Update, context: CallbackContext, length: int) -> None:
     """Generate and check usernames of the specified length."""
     stop_event.clear()
-    update.message.reply_text(f"Starting to check {length}-letter usernames...")
+    update.message.reply_text(f"Starting to check {length}-letter usernames, 5 usernames per 10 seconds...")
 
     while not stop_event.is_set():
-        username = generate_username(length)
-        is_available, reason = check_username_availability(username)
+        for _ in range(5):  # Check 5 usernames in a batch
+            username = generate_username(length)
+            is_available, reason = check_username_availability(username)
 
-        if is_available:
-            context.bot.send_message(chat_id=AVAILABLE_GROUP_ID, text=f"Available username: @{username}")
-        else:
-            context.bot.send_message(chat_id=LOG_GROUP_ID, text=f"Unavailable username: @{username} - Reason: {reason}")
+            if is_available:
+                context.bot.send_message(chat_id=AVAILABLE_GROUP_ID, text=f"Available username: @{username}")
+            else:
+                context.bot.send_message(chat_id=LOG_GROUP_ID, text=f"Unavailable username: @{username} - Reason: {reason}")
+        
+        # Wait for 10 seconds after checking 5 usernames
+        time.sleep(10)
 
     update.message.reply_text("Process stopped.")
 
@@ -102,3 +107,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
