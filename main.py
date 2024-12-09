@@ -89,6 +89,28 @@ def check_five(update: Update, context: CallbackContext) -> None:
     """Check 5-letter usernames."""
     check_usernames(update, context, 5)
 
+def test_username(update: Update, context: CallbackContext) -> None:
+    """
+    Test the availability of a specific username.
+    Usage: /test <username>
+    """
+    if len(context.args) != 1:
+        update.message.reply_text("Please provide exactly one username. Example: /test test123")
+        return
+
+    username = context.args[0]
+    if len(username) != 5:
+        update.message.reply_text("Please provide a username with exactly 5 characters.")
+        return
+
+    is_available, reason = check_username_availability(username)
+
+    if is_available:
+        update.message.reply_text(f"The username @{username} is available!")
+    else:
+        update.message.reply_text(f"The username @{username} is unavailable. Reason: {reason}")
+        
+
 def main():
     """Run the bot."""
     # Replace 'YOUR_BOT_TOKEN' with your bot's token
@@ -100,6 +122,8 @@ def main():
     dispatcher.add_handler(CommandHandler("stop", stop))
     dispatcher.add_handler(CommandHandler("four", check_four))
     dispatcher.add_handler(CommandHandler("five", check_five))
+    dispatcher.add_handler(CommandHandler("test", test_username, pass_args=True))
+    
 
     # Start polling
     updater.start_polling()
