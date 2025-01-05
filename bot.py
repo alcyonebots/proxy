@@ -12,65 +12,67 @@ PROXY_SOURCES = [
     "https://www.socks-proxy.net/",  # SOCKS5 proxies
     "https://www.sockslist.net/",  # Additional SOCKS5 proxies
     "https://www.socksproxylist24.top/",  # More SOCKS5 proxies
+    "https://www.proxy-list.download/Socks5",  # More SOCKS5 proxies
+    "https://www.privoxy.org/Proxies/SOCKS5",  # SOCKS5 proxies
 ]
 
 def scrape_proxies():
     proxies = []
-    
-    # Proxy source: socks-proxy.net
-    try:
-        url = "https://www.socks-proxy.net/"
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        rows = soup.find("table", {"class": "table-striped"}).find_all("tr")
-        for row in rows[1:]:
-            cols = row.find_all("td")
-            if len(cols) >= 3:
-                ip = cols[0].text.strip()
-                port = cols[1].text.strip()
-                country = cols[2].text.strip()
-                proxy_type = "SOCKS5"  # SOCKS5 proxies from this source
-                proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
-    except Exception as e:
-        print(f"Error scraping from Socks Proxy: {e}")
-    
-    # Additional proxy sources
-    try:
-        # Proxy source 2: sockslist.net
-        url = "https://www.sockslist.net/"
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        rows = soup.find("table").find_all("tr")
-        for row in rows[1:]:
-            cols = row.find_all("td")
-            if len(cols) >= 3:
-                ip = cols[0].text.strip()
-                port = cols[1].text.strip()
-                country = cols[2].text.strip()
-                proxy_type = "SOCKS5"
-                proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
-    except Exception as e:
-        print(f"Error scraping from Socks List: {e}")
 
-    try:
-        # Proxy source 3: socksproxylist24.top
-        url = "https://www.socksproxylist24.top/"
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        rows = soup.find("table").find_all("tr")
-        for row in rows[1:]:
-            cols = row.find_all("td")
-            if len(cols) >= 3:
-                ip = cols[0].text.strip()
-                port = cols[1].text.strip()
-                country = cols[2].text.strip()
-                proxy_type = "SOCKS5"
-                proxies.append({"ip": ip, "port": port, "type": proxy_type, "country": country})
-    except Exception as e:
-        print(f"Error scraping from Socks Proxy List 24: {e}")
+    # Scrape all the proxy sources
+    for url in PROXY_SOURCES:
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
+            
+            if "socks-proxy.net" in url:
+                rows = soup.find("table", {"class": "table-striped"}).find_all("tr")
+                for row in rows[1:]:
+                    cols = row.find_all("td")
+                    if len(cols) >= 3:
+                        ip = cols[0].text.strip()
+                        port = cols[1].text.strip()
+                        proxies.append({"ip": ip, "port": port, "type": "SOCKS5"})
+            
+            elif "sockslist.net" in url:
+                rows = soup.find("table").find_all("tr")
+                for row in rows[1:]:
+                    cols = row.find_all("td")
+                    if len(cols) >= 3:
+                        ip = cols[0].text.strip()
+                        port = cols[1].text.strip()
+                        proxies.append({"ip": ip, "port": port, "type": "SOCKS5"})
+            
+            elif "socksproxylist24.top" in url:
+                rows = soup.find("table").find_all("tr")
+                for row in rows[1:]:
+                    cols = row.find_all("td")
+                    if len(cols) >= 3:
+                        ip = cols[0].text.strip()
+                        port = cols[1].text.strip()
+                        proxies.append({"ip": ip, "port": port, "type": "SOCKS5"})
+            
+            elif "proxy-list.download/Socks5" in url:
+                rows = soup.find("table", {"class": "table table-bordered table-striped"}).find_all("tr")
+                for row in rows[1:]:
+                    cols = row.find_all("td")
+                    if len(cols) >= 2:
+                        ip = cols[0].text.strip()
+                        port = cols[1].text.strip()
+                        proxies.append({"ip": ip, "port": port, "type": "SOCKS5"})
+            
+            elif "privoxy.org" in url:
+                rows = soup.find_all("tr")
+                for row in rows:
+                    cols = row.find_all("td")
+                    if len(cols) >= 2:
+                        ip = cols[0].text.strip()
+                        port = cols[1].text.strip()
+                        proxies.append({"ip": ip, "port": port, "type": "SOCKS5"})
+            
+        except Exception as e:
+            print(f"Error scraping from {url}: {e}")
     
     return proxies
 
@@ -93,7 +95,7 @@ def categorize_and_send_proxies(proxies, update):
     # Test and categorize proxies
     for proxy in proxies:
         latency = test_proxy_latency(proxy)
-        formatted_proxy = f"{proxy['ip']}:{proxy['port']} | Type: {proxy['type']} | Country: {proxy['country']} | Latency: {latency:.2f}s"
+        formatted_proxy = f"{proxy['type']},{proxy['ip']},{proxy['port']}"
         
         if latency < 0.5:  # Less than 500 ms
             high_quality.append(formatted_proxy)
@@ -106,7 +108,7 @@ def categorize_and_send_proxies(proxies, update):
     if high_quality:
         with open("high_proxy.txt", "w") as file:
             for proxy in high_quality:
-                file.write(f"SOCKS5,{proxy.split('|')[0]},{proxy.split('|')[1]}\n")
+                file.write(f"{proxy}\n")
         update.message.reply_text("High-quality proxies found, sending the file...")
         update.message.reply_document(open("high_proxy.txt", "rb"))
         os.remove("high_proxy.txt")  # Delete file after sending
@@ -114,7 +116,7 @@ def categorize_and_send_proxies(proxies, update):
     if medium_quality:
         with open("medium_proxy.txt", "w") as file:
             for proxy in medium_quality:
-                file.write(f"SOCKS5,{proxy.split('|')[0]},{proxy.split('|')[1]}\n")
+                file.write(f"{proxy}\n")
         update.message.reply_text("Medium-quality proxies found, sending the file...")
         update.message.reply_document(open("medium_proxy.txt", "rb"))
         os.remove("medium_proxy.txt")
@@ -122,7 +124,7 @@ def categorize_and_send_proxies(proxies, update):
     if low_quality:
         with open("low_proxy.txt", "w") as file:
             for proxy in low_quality:
-                file.write(f"SOCKS5,{proxy.split('|')[0]},{proxy.split('|')[1]}\n")
+                file.write(f"{proxy}\n")
         update.message.reply_text("Low-quality proxies found, sending the file...")
         update.message.reply_document(open("low_proxy.txt", "rb"))
         os.remove("low_proxy.txt")
@@ -159,4 +161,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-              
+                    
