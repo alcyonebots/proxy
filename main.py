@@ -84,16 +84,31 @@ def save_and_categorize_proxies(proxies):
     with open("low_quality.txt", "w") as file:
         file.write("\n".join(low_quality))
 
-    return ["high_quality.txt", "medium_quality.txt", "low_quality.txt"]
+    return len(high_quality), len(medium_quality), len(low_quality), ["high_quality.txt", "medium_quality.txt", "low_quality.txt"]
 
 def send_and_delete_files(update: Update, context: CallbackContext):
     update.message.reply_text("Scraping proxies... Please wait.")
     proxies = scrape_proxies()
-    if not proxies:
+    total_proxies = len(proxies)
+
+    if total_proxies == 0:
         update.message.reply_text("No proxies found.")
         return
 
-    files = save_and_categorize_proxies(proxies)
+    # Notify the number of proxies scraped
+    update.message.reply_text(f"Scraped a total of {total_proxies} proxies.")
+
+    high, medium, low, files = save_and_categorize_proxies(proxies)
+
+    # Notify categorized counts
+    update.message.reply_text(
+        f"Categorized proxies:\n"
+        f"High-quality: {high}\n"
+        f"Medium-quality: {medium}\n"
+        f"Low-quality: {low}"
+    )
+
+    # Send files and delete them
     for file_name in files:
         context.bot.send_document(chat_id=update.effective_chat.id, document=open(file_name, "rb"))
         os.remove(file_name)  # Delete the file after sending
@@ -119,4 +134,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
